@@ -1,0 +1,64 @@
+#!/bin/bash -eu
+
+argv0=db-init
+
+# Default options
+db_name=${AUR_DB:-custom}
+db_root=${AUR_DB_ROOT:-/var/lib/repo/custom}
+db_ext=${AUR_DB_EXT:-db}
+force=no
+
+usage() {
+  printf >&2 'usage: %s [-d name] [-r path] [-f]\n' "$argv0"
+  exit 1
+}
+
+# Option parsing
+opt_short='d:r:f'
+opt_long='database:,root:,force'
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  -d | --database)
+    shift
+    db_name=$1
+    ;;
+  -r | --root)
+    shift
+    db_root=$1
+    ;;
+  -f | --force)
+    force=yes
+    ;;
+  --)
+    shift
+    break
+    ;;
+  *)
+    usage
+    ;;
+  esac
+  shift
+done
+
+db_path="$db_root/$db_name.$db_ext.tar.gz"
+
+sudo install --owner "$(id --user)" --group "$(id --group)" --directory "$db_root"
+
+if [ -f "$db_path" ]; then
+  if [ "$force" = yes ]; then
+    printf >&2 '%s: %s: removing existing database\n' "$argv0" "$db_path"
+    rm "$db_path"
+  else
+    printf >&2 '%s: %s: database already exists\n' "$argv0" "$db_path"
+    exit 17 # errno EEXIST
+  fi
+fi
+
+repo-add --sign "$db_path"
