@@ -1,0 +1,40 @@
+#!/bin/bash -eu
+
+argv0='patch'
+
+usage() {
+  printf >&2 'usage: %s path\n' "$argv0"
+  exit 1
+}
+
+# Option parsing
+opt_short=''
+opt_long=''
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  --)
+    shift
+    break
+    ;;
+  *)
+    usage
+    ;;
+  esac
+  shift
+done
+
+# Argument parsing
+archive="${1:?Missing positional arg archive}"
+
+archive_root=$(dirname "$archive")
+archive_name=$(basename "$archive")
+cd "$archive_root"
+
+diff --unified --recursive --text "$archive_name.orig" "$archive_name"
