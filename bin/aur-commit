@@ -1,0 +1,152 @@
+#!/bin/bash -eu
+
+argv0=commit
+
+# Default options
+host_build=yes
+chroot_build=yes
+install=yes
+force=no
+
+usage() {
+  printf >&2 'usage: %s [-h yes|no] [-c yes|no] [-i yes|no] [-f]\n' "$argv0"
+  exit 1
+}
+
+# Option parsing
+opt_short='h:c:f'
+opt_long='host-build:,chroot-build:,force'
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  -h | --host-build)
+    host_build=$1
+    ;;
+  -c | --chroot-build)
+    chroot_build=$1
+    ;;
+  -i | --install)
+    install=$1
+    ;;
+  -f | --force)
+    force=yes
+    ;;
+  --)
+    shift
+    break
+    ;;
+  *)
+    usage
+    ;;
+  esac
+  shift
+done
+
+if [ ! -f PKGBUILD ]; then
+  printf >&2 '%s: PKGBUILD: does not exist\n' "$argv0"
+  exit 2 # errno ENOENT
+fi
+
+# Source PKGBUILD and check for required variables
+var_names=(pkgver pkgrel arch)
+unset "${var_names[@]}"
+# shellcheck disable=1091
+. "$PWD/PKGBUILD"
+
+check_pkgbuild_vars() {
+  for var_name in "${var_names[@]}"; do
+    if [ -z "${!var_name}" ]; then
+      printf >&2 '%s: %s: not defined in PKGBUILD\n' "$argv0" "$var_name"
+      exit 22 # eerno EINVAL
+    fi
+  done
+}
+check_pkgbuild_vars
+
+# shellcheck disable=2154
+{
+  new_pkgver="$pkgver"
+  new_pkgrel="$pkgrel"
+  new_arch="$arch"
+}
+
+printf >&2 '%s: updating .SRCINFO\n' "$argv0"
+makepkg --printsrcinfo > .SRCINFO
+
+# Ensure version has been bumped
+if [ "$force" = no ]; then
+  if [ -z "$(git status --porcelain)" ]; then
+    printf >&2 '%s: %s-%s: nothing to commit\n' "$argv0" "$pkgver" "$pkgrel"
+    exit 0
+  fi
+
+  old_pkgbuild=$(mktemp)
+  git show HEAD:PKGBUILD >> "$old_pkgbuild"
+  # shellcheck disable=1090
+  . "$old_pkgbuild"
+  check_pkgbuild_vars
+
+  if [ "$pkgver" = "$new_pkgver" ] && [ "$pkgrel" = "$new_pkgrel" ]; then
+    printf >&2 '%s: %s-%s: neither pkgver nor pkgrel bumped\n' "$argv0" "$pkgver" "$pkgrel"
+    exit 22 # eerno EINVAL
+  fi
+fi
+
+# Run sudo to ensure password is cached
+command -v sudo > /dev/null && sudo cat /dev/null
+
+if [ "$host_build" = yes ]; then
+  printf >&2 '%s: building on host\n' "$argv0"
+  aur build --force --sign --syncdeps --verify
+fi
+if [ "$chroot_build" = yes ]; then
+  printf >&2 '%s: building in chroot\n' "$argv0"
+  aur build --force --sign --syncdeps --verify --chroot --namcap
+fi
+
+if [ "$install" = yes ]; then
+  printf >&2 '%s: installing package/s\n' "$argv0"
+  # shellcheck disable=2154
+  for _pkgname in "${pkgname[@]}"; do
+    sudo pacman -Sy --noconfirm "$_pkgname"
+  done
+fi
+
+printf >&2 '%s: shfmt output BEGIN/s\n' "$argv0"
+shfmt --diff \
+  --indent 2 \
+  --language-dialect bash \
+  --binary-next-line \
+  --space-redirects \
+  PKGBUILD
+printf >&2 '%s: shfmt output END\n' "$argv0"
+
+printf >&2 '%s: shellcheck output BEGIN\n' "$argv0"
+shellcheck \
+  --shell=bash \
+  --exclude=2034,2128,2154,2164 \
+  PKGBUILD
+printf >&2 '%s: shellcheck output END\n' "$argv0"
+
+printf >&2 '%s: namcap output BEGIN\n' "$argv0"
+for _pkgname in "${pkgname[@]}"; do
+  cat "$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap.log"
+done
+printf >&2 '%s: namcap output END\n' "$argv0"
+
+committable_changes=$(git diff)$(git diff --cached)
+
+if [ -n "$committable_changes" ]; then
+  git commit -am "Publish version $new_pkgver-$new_pkgrel"
+else
+  printf >&2 '%s: no changes to commit\n' "$argv0"
+  if [ "$force" = no ]; then
+    exit 22 # errno EINVAL
+  fi
+fi
