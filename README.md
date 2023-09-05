@@ -32,12 +32,14 @@ fewer inputs.
 * `aur-commit` - Performs a number of checks on a package repository and
   commits the changes in a consistent manner. Specifically:
 
-  * Check that either `pkgver` or `pkgrel` have been bumped from last commit.
+  * Update SRCINFO.
+  * Check that either `pkgver` or `pkgrel` have been bumped since the last
+    commit.
+  * Run [shfmt](https://github.com/mvdan/sh) on the PKGBUILD.
+  * Run [shellcheck](https://github.com/koalaman/shellcheck) on the PKGBUILD.
   * Build the package on the host system.
   * Build the package in a chroot.
   * Install the package on the host system.
-  * Run [shfmt](https://github.com/mvdan/sh) on the PKGBUILD.
-  * Run [shellcheck](https://github.com/koalaman/shellcheck) on the PKGBUILD.
   * Print [namcap](https://wiki.archlinux.org/title/Namcap) output.
 
   The idea is to perform as much testing and quality control as possible after

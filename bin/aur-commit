@@ -95,6 +95,20 @@ if [ "$force" = no ]; then
   fi
 fi
 
+printf >&2 '%s: Checking PKGBUILD with shfmt\n' "$argv0"
+shfmt --diff \
+  --indent 2 \
+  --language-dialect bash \
+  --binary-next-line \
+  --space-redirects \
+  PKGBUILD
+
+printf >&2 '%s: Checking PKGBUILD with shellcheck\n' "$argv0"
+shellcheck \
+  --shell=bash \
+  --exclude=2034,2128,2154,2164 \
+  PKGBUILD
+
 # Run sudo to ensure password is cached
 command -v sudo > /dev/null && sudo cat /dev/null
 
@@ -114,22 +128,6 @@ if [ "$install" = yes ]; then
     sudo pacman -Sy --noconfirm "$_pkgname"
   done
 fi
-
-printf >&2 '%s: shfmt output BEGIN/s\n' "$argv0"
-shfmt --diff \
-  --indent 2 \
-  --language-dialect bash \
-  --binary-next-line \
-  --space-redirects \
-  PKGBUILD
-printf >&2 '%s: shfmt output END\n' "$argv0"
-
-printf >&2 '%s: shellcheck output BEGIN\n' "$argv0"
-shellcheck \
-  --shell=bash \
-  --exclude=2034,2128,2154,2164 \
-  PKGBUILD
-printf >&2 '%s: shellcheck output END\n' "$argv0"
 
 printf >&2 '%s: namcap output BEGIN\n' "$argv0"
 for _pkgname in "${pkgname[@]}"; do
