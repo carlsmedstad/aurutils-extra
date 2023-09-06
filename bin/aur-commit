@@ -41,9 +41,6 @@ while true; do
     shift
     break
     ;;
-  *)
-    usage
-    ;;
   esac
   shift
 done
