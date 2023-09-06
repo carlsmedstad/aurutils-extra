@@ -2,6 +2,9 @@
 
 argv0=commit
 
+# Environemnt variables
+keep_file=${AUR_KEEP_FILE:-$HOME/.config/aurutils/keep}
+
 # Default options
 host_build=yes
 chroot_build=yes
@@ -126,6 +129,12 @@ if [ "$install" = yes ]; then
   # shellcheck disable=2154
   for _pkgname in "${pkgname[@]}"; do
     sudo pacman -Sy --noconfirm "$_pkgname"
+
+    # Uninstall package if not in keep file
+    # shellcheck disable=2015
+    [ -f "$keep_file" ] \
+      && grep --quiet "$_pkgname" "$keep_file" \
+      || sudo pacman -Rs --noconfirm "$_pkgname"
   done
 fi
 
