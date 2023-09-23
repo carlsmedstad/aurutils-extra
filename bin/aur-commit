@@ -17,7 +17,7 @@ usage() {
 }
 
 # Option parsing
-opt_short='h:c:f'
+opt_short='h:c:i:f'
 opt_long='host-build:,chroot-build:,force'
 
 if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
@@ -29,12 +29,15 @@ fi
 while true; do
   case $1 in
   -h | --host-build)
+    shift
     host_build=$1
     ;;
   -c | --chroot-build)
+    shift
     chroot_build=$1
     ;;
   -i | --install)
+    shift
     install=$1
     ;;
   -f | --force)
