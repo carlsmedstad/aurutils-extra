@@ -151,11 +151,13 @@ if [ "$install" = yes ]; then
   done
 fi
 
-printf >&2 '%s: namcap output BEGIN\n' "$argv0"
-for _pkgname in "${pkgname[@]}"; do
-  cat "$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap.log"
-done
-printf >&2 '%s: namcap output END\n' "$argv0"
+if [ "$chroot_build" = yes ]; then
+  printf >&2 '%s: namcap output BEGIN\n' "$argv0"
+  for _pkgname in "${pkgname[@]}"; do
+    cat "$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap.log"
+  done
+  printf >&2 '%s: namcap output END\n' "$argv0"
+fi
 
 committable_changes=$(git diff)$(git diff --cached)
 
