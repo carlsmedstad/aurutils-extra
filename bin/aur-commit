@@ -115,6 +115,16 @@ shellcheck \
   --exclude=2034,2128,2154,2164 \
   PKGBUILD
 
+if [ -n "$(find . -name '*.desktop')" ]; then
+  printf >&2 '%s: Checking desktop entries with desktop-file-validate\n' "$argv0"
+  desktop-file-validate ./*.desktop
+fi
+
+if [ -n "$(find . -name '*.service')" ]; then
+  printf >&2 '%s: Checking systemd unit files with systemd-analyze\n' "$argv0"
+  systemd-analyze verify ./*.service
+fi
+
 # Run sudo to ensure password is cached
 command -v sudo > /dev/null && sudo cat /dev/null
 
