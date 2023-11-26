@@ -1,0 +1,13 @@
+#!/bin/bash -eu
+
+argv0=remove
+
+if [ "$#" -eq 0 ]; then
+  printf >&2 'usage: %s package [package ...]\n' "$argv0"
+  exit 1
+fi
+
+aur repo --list-path | while read -r repo_path; do
+  repo-remove --sign "$repo_path" "$@"
+  paccache -c "${repo_path%/*}" -rvk0 "$@"
+done
