@@ -120,11 +120,6 @@ if [ -n "$(find . -name '*.desktop')" ]; then
   desktop-file-validate ./*.desktop
 fi
 
-if [ -n "$(find . -name '*.service')" ]; then
-  printf >&2 '%s: Checking systemd unit files with systemd-analyze\n' "$argv0"
-  systemd-analyze verify ./*.service
-fi
-
 # Run sudo to ensure password is cached
 command -v sudo > /dev/null && sudo cat /dev/null
 
@@ -142,7 +137,14 @@ if [ "$install" = yes ]; then
   # shellcheck disable=2154
   for _pkgname in "${pkgname[@]}"; do
     sudo pacman -Sy --noconfirm "$_pkgname"
+  done
 
+  if [ -n "$(find . -name '*.service')" ]; then
+    printf >&2 '%s: Checking systemd unit files with systemd-analyze\n' "$argv0"
+    systemd-analyze verify ./*.service
+  fi
+
+  for _pkgname in "${pkgname[@]}"; do
     # Uninstall package if not in keep file
     # shellcheck disable=2015
     [ -f "$keep_file" ] \
