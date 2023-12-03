@@ -1,0 +1,111 @@
+#!/bin/bash -e
+
+argv0=geninteg
+
+# Default options
+force_download=no
+
+usage() {
+  printf >&2 'usage: %s [-f]\n' "$argv0"
+  exit 1
+}
+
+# Option parsing
+opt_short='f'
+opt_long='force-download'
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  -f | --force-download)
+    force_download=yes
+    ;;
+  --)
+    shift
+    break
+    ;;
+  esac
+  shift
+done
+
+if [ ! -f PKGBUILD ]; then
+  printf >&2 '%s: PKGBUILD: does not exist\n' "$argv0"
+  exit 2 # errno ENOENT
+fi
+
+# shellcheck disable=SC1091
+. ./PKGBUILD
+
+CARCH=${CARCH:-$(uname -m)}
+
+download() {
+  local filename=$1
+  local url=$2
+
+  curl --silent --show-error --fail-with-body --location \
+    --output "$filename" "$url"
+}
+
+# Handle architecture specific sources, not supported by 'makepkg --geninteg'
+for arch in x86_64 i686 armv7h aarch64; do
+  varname=source_$arch
+
+  if [ -z "${!varname}" ]; then
+    continue
+  fi
+
+  filename=${!varname%%::*}
+  url=${!varname#*::}
+
+  if [ "$CARCH" = "$arch" ]; then
+    download_file="$filename"
+  else
+    download_dir="/tmp/geninteg/$arch"
+    mkdir -p "$download_dir"
+    download_file="$download_dir/$filename"
+  fi
+
+  if [ ! -f "$download_file" ] || [ $force_download = "yes" ]; then
+    download "$download_file" "$url"
+  fi
+
+  sha256sum=$(sha256sum "$download_file" | awk '{print $1}')
+  printf "sha256sums_%s=('%s')\n" "$arch" "$sha256sum"
+done
+
+if [ -z "$source" ]; then
+  exit 0
+fi
+
+# Leverage 'makepkg --geninteg' to handle regular sources
+makepkg_geninteg_stderr=$(mktemp)
+makepkg_geninteg_stdout=$(makepkg --geninteg 2> "$makepkg_geninteg_stderr")
+makepkg_geninteg_ret=$?
+
+if [ $makepkg_geninteg_ret -ne 0 ]; then
+  printf >&2 "%s: makepkg --geninteg failed with exit status %d\n" "$argv0" "$makepkg_geninteg_ret"
+  printf >&2 "%s\n" "$makepkg_geninteg_stderr"
+  exit $makepkg_geninteg_ret
+fi
+
+eval "$makepkg_geninteg_stdout"
+
+# shellcheck disable=SC2154
+sha256sums_length=${#sha256sums[@]}
+
+if [ "$sha256sums_length" -eq 1 ]; then
+  printf "sha256sums=('%s')\n" "${sha256sums[0]}"
+elif [ "$sha256sums_length" -eq 0 ]; then
+  exit 0
+else
+  printf "sha256sums=(\n"
+  for sum in "${sha256sums[@]}"; do
+    printf "  '%s'\n" "$sum"
+  done
+  printf ")\n"
+fi
