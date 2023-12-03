@@ -48,15 +48,20 @@ fewer inputs.
 
 ## Installation
 
-Clone the repository and run
+To install the commands system-wide, clone the repository and run:
 
 ```sh
 make install
 ```
 
-to install the commands system-wide. Or, run the following to install it for
-a your user only:
+Or, run the following to install it for a your user only:
 
 ```sh
 PREFIX=~/.local make install
+```
+
+You can also install the executables to `~/.local/bin` as symlinks by running:
+
+```sh
+PREFIX=~/.local make install-symlinks
 ```
