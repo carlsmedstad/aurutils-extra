@@ -6,19 +6,16 @@ argv0=commit
 keep_file=${AUR_KEEP_FILE:-$HOME/.config/aurutils/keep}
 
 # Default options
-host_build=yes
-chroot_build=yes
-install=yes
-force=no
+actions=vhci
 
 usage() {
-  printf >&2 'usage: %s [-h yes|no] [-c yes|no] [-i yes|no] [-f]\n' "$argv0"
+  printf >&2 'usage: %s [-a <actions>]\n' "$argv0"
   exit 1
 }
 
 # Option parsing
-opt_short='h:c:i:f'
-opt_long='host-build:,chroot-build:,force'
+opt_short='a:'
+opt_long='actions:'
 
 if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
   eval set -- "$opts"
@@ -28,20 +25,9 @@ fi
 
 while true; do
   case $1 in
-  -h | --host-build)
+  -a | --actions)
     shift
-    host_build=$1
-    ;;
-  -c | --chroot-build)
-    shift
-    chroot_build=$1
-    ;;
-  -i | --install)
-    shift
-    install=$1
-    ;;
-  -f | --force)
-    force=yes
+    actions=$1
     ;;
   --)
     shift
@@ -49,6 +35,33 @@ while true; do
     ;;
   esac
   shift
+done
+
+version_check=no
+host_build=no
+chroot_build=no
+install=no
+
+# Parse actions and set variables
+for action in $(echo "$actions" | fold -w1); do
+  case $action in
+  v)
+    version_check=yes
+    ;;
+  h)
+    host_build=yes
+    ;;
+  c)
+    chroot_build=yes
+    ;;
+  i)
+    install=yes
+    ;;
+  *)
+    printf >&2 'Error: Unknown action - %s\n' "$1"
+    exit 22 # errno EINVAL
+    ;;
+  esac
 done
 
 if [ ! -f PKGBUILD ]; then
@@ -83,7 +96,7 @@ printf >&2 '%s: updating .SRCINFO\n' "$argv0"
 makepkg --printsrcinfo > .SRCINFO
 
 # Ensure version has been bumped
-if [ "$force" = no ]; then
+if [ "$version_check" = yes ]; then
   if [ -z "$(git status --porcelain)" ]; then
     printf >&2 '%s: %s-%s: nothing to commit\n' "$argv0" "$pkgver" "$pkgrel"
     exit 0
@@ -171,7 +184,7 @@ if [ -n "$committable_changes" ]; then
   git commit -am "Publish version $new_pkgver-$new_pkgrel"
 else
   printf >&2 '%s: no changes to commit\n' "$argv0"
-  if [ "$force" = no ]; then
+  if [ "$version_check" = yes ]; then
     exit 22 # errno EINVAL
   fi
 fi
