@@ -6,16 +6,17 @@ argv0=commit
 keep_file=${AUR_KEEP_FILE:-$HOME/.config/aurutils/keep}
 
 # Default options
-actions=vhci
+actions=vlhci
+force=no
 
 usage() {
-  printf >&2 'usage: %s [-a <actions>]\n' "$argv0"
+  printf >&2 'usage: %s [-h] [-f] [-a <actions: vlhci>]\n' "$argv0"
   exit 1
 }
 
 # Option parsing
-opt_short='a:'
-opt_long='actions:'
+opt_short='hfa:'
+opt_long='help,actions:'
 
 if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
   eval set -- "$opts"
@@ -29,6 +30,12 @@ while true; do
     shift
     actions=$1
     ;;
+  -f | --force)
+    force=yes
+    ;;
+  -h | --help)
+    usage
+    ;;
   --)
     shift
     break
@@ -38,6 +45,7 @@ while true; do
 done
 
 version_check=no
+lint=no
 host_build=no
 chroot_build=no
 install=no
@@ -47,6 +55,9 @@ for action in $(echo "$actions" | fold -w1); do
   case $action in
   v)
     version_check=yes
+    ;;
+  l)
+    lint=yes
     ;;
   h)
     host_build=yes
@@ -63,6 +74,10 @@ for action in $(echo "$actions" | fold -w1); do
     ;;
   esac
 done
+
+if [ "$force" = yes ]; then
+  version_check=no
+fi
 
 if [ ! -f PKGBUILD ]; then
   printf >&2 '%s: PKGBUILD: does not exist\n' "$argv0"
@@ -114,23 +129,25 @@ if [ "$version_check" = yes ]; then
   fi
 fi
 
-printf >&2 '%s: Checking PKGBUILD with shfmt\n' "$argv0"
-shfmt --diff \
-  --indent 2 \
-  --language-dialect bash \
-  --binary-next-line \
-  --space-redirects \
-  PKGBUILD
+if [ "$lint" = yes ]; then
+  printf >&2 '%s: Checking PKGBUILD with shfmt\n' "$argv0"
+  shfmt --diff \
+    --indent 2 \
+    --language-dialect bash \
+    --binary-next-line \
+    --space-redirects \
+    PKGBUILD
 
-printf >&2 '%s: Checking PKGBUILD with shellcheck\n' "$argv0"
-shellcheck \
-  --shell=bash \
-  --exclude=2034,2128,2154,2164 \
-  PKGBUILD
+  printf >&2 '%s: Checking PKGBUILD with shellcheck\n' "$argv0"
+  shellcheck \
+    --shell=bash \
+    --exclude=2034,2128,2154,2164 \
+    PKGBUILD
 
-if [ -n "$(find . -name '*.desktop')" ]; then
-  printf >&2 '%s: Checking desktop entries with desktop-file-validate\n' "$argv0"
-  desktop-file-validate ./*.desktop
+  if [ -n "$(find . -name '*.desktop')" ]; then
+    printf >&2 '%s: Checking desktop entries with desktop-file-validate\n' "$argv0"
+    desktop-file-validate ./*.desktop
+  fi
 fi
 
 # Run sudo to ensure password is cached
