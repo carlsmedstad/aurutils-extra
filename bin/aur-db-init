@@ -3,9 +3,9 @@
 argv0=db-init
 
 # Default options
-db_name=${AUR_DB:-custom}
-db_root=${AUR_DB_ROOT:-/var/lib/repo/custom}
-db_ext=${AUR_DB_EXT:-db}
+db_name=${AUR_REPO:-custom}
+db_root=${AUR_DBROOT:-/var/lib/repo/custom}
+db_ext=${AUR_DBEXT:-db}
 force=no
 
 usage() {
