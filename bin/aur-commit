@@ -4,6 +4,7 @@ argv0=commit
 
 # Environemnt variables
 keep_file=${AUR_KEEP_FILE:-$HOME/.config/aurutils/keep}
+db_root=${AUR_DBROOT:-/var/lib/repo/custom}
 
 # Default options
 actions=vlhci
@@ -104,6 +105,7 @@ check_pkgbuild_vars
 {
   new_pkgver="$pkgver"
   new_pkgrel="$pkgrel"
+  # shellcheck disable=2128
   new_arch="$arch"
 }
 
@@ -153,13 +155,19 @@ fi
 # Run sudo to ensure password is cached
 command -v sudo > /dev/null && sudo cat /dev/null
 
+tmpdir=$(mktemp -d)
+
 if [ "$host_build" = yes ]; then
   printf >&2 '%s: building on host\n' "$argv0"
   aur build --force --sign --syncdeps --verify
+  namcap "$db_root/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst" \
+    > "$tmpdir/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap-host.log"
 fi
 if [ "$chroot_build" = yes ]; then
   printf >&2 '%s: building in chroot\n' "$argv0"
-  aur build --force --sign --syncdeps --verify --chroot --namcap
+  aur build --force --sign --syncdeps --verify --chroot
+  namcap "$db_root/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst" \
+    > "$tmpdir/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap-chroot.log"
 fi
 
 if [ "$install" = yes ]; then
@@ -183,17 +191,25 @@ if [ "$install" = yes ]; then
   done
 fi
 
-if [ "$chroot_build" = yes ]; then
-  printf >&2 '%s: namcap output PKGBUILD BEGIN\n' "$argv0"
-  cat PKGBUILD-namcap.log
-  printf >&2 '%s: namcap output PKGBUILD END\n' "$argv0"
+printf >&2 '%s: namcap output:\n' "$argv0"
 
-  for _pkgname in "${pkgname[@]}"; do
-    printf >&2 '%s: namcap output for %s BEGIN\n' "$argv0" "$_pkgname"
-    cat "$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap.log"
-    printf >&2 '%s: namcap output for %s END\n' "$argv0" "$_pkgname"
-  done
-fi
+printf >&2 '>>> PKGBUILD BEGIN\n'
+namcap PKGBUILD
+printf >&2 '<<< PKGBUILD END\n'
+
+for _pkgname in "${pkgname[@]}"; do
+  if [ "$host_build" = yes ]; then
+    printf >&2 '>>> %s host build BEGIN\n' "$_pkgname"
+    cat "$tmpdir/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap-host.log"
+    printf >&2 '<<< %s host build END\n' "$_pkgname"
+  fi
+
+  if [ "$chroot_build" = yes ]; then
+    printf >&2 '>>> %s chroot build BEGIN\n' "$_pkgname"
+    cat "$tmpdir/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap-chroot.log"
+    printf >&2 '<<< %s chroot build END\n' "$_pkgname"
+  fi
+done
 
 committable_changes=$(git diff)$(git diff --cached)
 
