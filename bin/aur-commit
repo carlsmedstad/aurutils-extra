@@ -4,7 +4,11 @@ argv0=commit
 
 # Environemnt variables
 keep_file=${AUR_KEEP_FILE:-$HOME/.config/aurutils/keep}
-db_root=${AUR_DBROOT:-/var/lib/repo/custom}
+host_aur_repo=${AUR_REPO:-custom}
+host_aur_dbroot=${AUR_DBROOT:-/var/lib/repo/$host_aur_repo}
+chroot_aur_repo=${CHROOT_AUR_REPO:-chroot}
+chroot_aur_dbroot=${CHROOT_AUR_DBROOT:-/var/lib/repo/$chroot_aur_repo}
+host_build_dir=${AUR_HOST_BUILDDIR:-/tmp/makepkg}
 
 # Default options
 actions=vlhci
@@ -70,7 +74,7 @@ for action in $(echo "$actions" | fold -w1); do
     install=yes
     ;;
   *)
-    printf >&2 'Error: Unknown action - %s\n' "$1"
+    printf >&2 -- '-- %s: %s: unkown action\n' "$argv0" "$1"
     exit 22 # errno EINVAL
     ;;
   esac
@@ -81,12 +85,13 @@ if [ "$force" = yes ]; then
 fi
 
 if [ ! -f PKGBUILD ]; then
-  printf >&2 '%s: PKGBUILD: does not exist\n' "$argv0"
+  printf >&2 -- '-- %s: PKGBUILD: does not exist\n' "$argv0"
   exit 2 # errno ENOENT
 fi
 
 # Source PKGBUILD and check for required variables
-var_names=(pkgver pkgrel arch)
+var_names=(pkgname pkgver pkgrel arch)
+pkgbase=""
 unset "${var_names[@]}"
 # shellcheck disable=1091
 . "$PWD/PKGBUILD"
@@ -94,7 +99,7 @@ unset "${var_names[@]}"
 check_pkgbuild_vars() {
   for var_name in "${var_names[@]}"; do
     if [ -z "${!var_name}" ]; then
-      printf >&2 '%s: %s: not defined in PKGBUILD\n' "$argv0" "$var_name"
+      printf >&2 -- '-- %s: %s: not defined in PKGBUILD\n' "$argv0" "$var_name"
       exit 22 # eerno EINVAL
     fi
   done
@@ -109,13 +114,13 @@ check_pkgbuild_vars
   new_arch="$arch"
 }
 
-printf >&2 '%s: updating .SRCINFO\n' "$argv0"
+printf >&2 -- '-- %s: updating .SRCINFO\n' "$argv0"
 makepkg --printsrcinfo > .SRCINFO
 
 # Ensure version has been bumped
 if [ "$version_check" = yes ]; then
   if [ -z "$(git status --porcelain)" ]; then
-    printf >&2 '%s: %s-%s: nothing to commit\n' "$argv0" "$pkgver" "$pkgrel"
+    printf >&2 -- '-- %s: %s-%s: nothing to commit\n' "$argv0" "$pkgver" "$pkgrel"
     exit 0
   fi
 
@@ -126,13 +131,13 @@ if [ "$version_check" = yes ]; then
   check_pkgbuild_vars
 
   if [ "$pkgver" = "$new_pkgver" ] && [ "$pkgrel" = "$new_pkgrel" ]; then
-    printf >&2 '%s: %s-%s: neither pkgver nor pkgrel bumped\n' "$argv0" "$pkgver" "$pkgrel"
+    printf >&2 -- '-- %s: %s-%s: neither pkgver nor pkgrel bumped\n' "$argv0" "$pkgver" "$pkgrel"
     exit 22 # eerno EINVAL
   fi
 fi
 
 if [ "$lint" = yes ]; then
-  printf >&2 '%s: Checking PKGBUILD with shfmt\n' "$argv0"
+  printf >&2 -- '-- %s: Checking PKGBUILD with shfmt\n' "$argv0"
   shfmt --diff \
     --indent 2 \
     --language-dialect bash \
@@ -140,14 +145,14 @@ if [ "$lint" = yes ]; then
     --space-redirects \
     PKGBUILD
 
-  printf >&2 '%s: Checking PKGBUILD with shellcheck\n' "$argv0"
+  printf >&2 -- '-- %s: Checking PKGBUILD with shellcheck\n' "$argv0"
   shellcheck \
     --shell=bash \
     --exclude=2034,2128,2154,2164 \
     PKGBUILD
 
   if [ -n "$(find . -name '*.desktop')" ]; then
-    printf >&2 '%s: Checking desktop entries with desktop-file-validate\n' "$argv0"
+    printf >&2 -- '-- %s: Checking desktop entries with desktop-file-validate\n' "$argv0"
     desktop-file-validate ./*.desktop
   fi
 fi
@@ -155,33 +160,65 @@ fi
 # Run sudo to ensure password is cached
 command -v sudo > /dev/null && sudo cat /dev/null
 
-tmpdir=$(mktemp -d)
-
 if [ "$host_build" = yes ]; then
-  printf >&2 '%s: building on host\n' "$argv0"
-  aur build --force --sign --syncdeps --verify
-  namcap "$db_root/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst" \
-    > "$tmpdir/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap-host.log"
-fi
-if [ "$chroot_build" = yes ]; then
-  printf >&2 '%s: building in chroot\n' "$argv0"
-  aur build --force --sign --syncdeps --verify --chroot
-  namcap "$db_root/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst" \
-    > "$tmpdir/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap-chroot.log"
+  printf >&2 -- '-- %s: building on host\n' "$argv0"
+
+  if [ -n "$pkgbase" ]; then
+    _pkgbase="$pkgbase"
+  else
+    # shellcheck disable=2154
+    _pkgbase="$pkgname"
+  fi
+  mkdir -p "$host_build_dir/$_pkgbase/src"
+  git -C "$host_build_dir/$_pkgbase/src" init
+  printf "*\n" > "$host_build_dir/$_pkgbase/src/.gitignore"
+
+  aur build --database "$host_aur_repo" --force --sign --syncdeps --verify
 fi
 
 if [ "$install" = yes ]; then
-  printf >&2 '%s: installing package/s\n' "$argv0"
+  printf >&2 -- '-- %s: installing package/s\n' "$argv0"
   # shellcheck disable=2154
   for _pkgname in "${pkgname[@]}"; do
     sudo pacman -Sy --noconfirm "$_pkgname"
   done
 
   if [ -n "$(find . -name '*.service')" ]; then
-    printf >&2 '%s: Checking systemd unit files with systemd-analyze\n' "$argv0"
+    printf >&2 -- '-- %s: Checking systemd unit files with systemd-analyze\n' "$argv0"
     systemd-analyze verify ./*.service
   fi
+fi
 
+if [ "$chroot_build" = yes ]; then
+  printf >&2 -- '-- %s: building in chroot\n' "$argv0"
+
+  AUR_REPO=$chroot_aur_repo AUR_DBROOT=$chroot_aur_dbroot \
+    aur build --database "$chroot_aur_repo" --force --sign --syncdeps --verify --chroot
+fi
+
+printf >&2 -- '-- %s: PKGBUILD: >>> namcap BEGIN\n' "$argv0"
+namcap PKGBUILD
+printf >&2 -- '-- %s: PKGBUILD: <<< namcap END\n' "$argv0"
+
+if [ "$host_build" = yes ]; then
+  for _pkgname in "${pkgname[@]}"; do
+    pkg_path="$host_aur_dbroot/$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
+    printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
+    namcap "$pkg_path"
+    printf >&2 -- '-- %s: %s: <<< namcap END\n' "$argv0" "$pkg_path"
+  done
+fi
+
+if [ "$chroot_build" = yes ]; then
+  for _pkgname in "${pkgname[@]}"; do
+    pkg_path="$chroot_aur_dbroot/$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
+    printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
+    namcap "$pkg_path"
+    printf >&2 -- '-- %s: %s: <<< namcap END\n' "$argv0" "$pkg_path"
+  done
+fi
+
+if [ "$install" = yes ]; then
   for _pkgname in "${pkgname[@]}"; do
     # Uninstall package if not in keep file
     # shellcheck disable=2015
@@ -191,32 +228,12 @@ if [ "$install" = yes ]; then
   done
 fi
 
-printf >&2 '%s: namcap output:\n' "$argv0"
-
-printf >&2 '>>> PKGBUILD BEGIN\n'
-namcap PKGBUILD
-printf >&2 '<<< PKGBUILD END\n'
-
-for _pkgname in "${pkgname[@]}"; do
-  if [ "$host_build" = yes ]; then
-    printf >&2 '>>> %s host build BEGIN\n' "$_pkgname"
-    cat "$tmpdir/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap-host.log"
-    printf >&2 '<<< %s host build END\n' "$_pkgname"
-  fi
-
-  if [ "$chroot_build" = yes ]; then
-    printf >&2 '>>> %s chroot build BEGIN\n' "$_pkgname"
-    cat "$tmpdir/$pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst-namcap-chroot.log"
-    printf >&2 '<<< %s chroot build END\n' "$_pkgname"
-  fi
-done
-
 committable_changes=$(git diff)$(git diff --cached)
 
 if [ -n "$committable_changes" ]; then
   git commit -am "Publish version $new_pkgver-$new_pkgrel"
 else
-  printf >&2 '%s: no changes to commit\n' "$argv0"
+  printf >&2 -- '-- %s: no changes to commit\n' "$argv0"
   if [ "$version_check" = yes ]; then
     exit 22 # errno EINVAL
   fi
