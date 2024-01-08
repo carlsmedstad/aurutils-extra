@@ -3,9 +3,9 @@
 argv0=db-init
 
 # Default options
-db_name=${AUR_REPO:-custom}
-db_root=${AUR_DBROOT:-/var/lib/repo/custom}
-db_ext=${AUR_DBEXT:-db}
+aur_repo=${AUR_REPO:-custom}
+aur_dbroot=${AUR_DBROOT:-/var/lib/repo}
+aur_dbext=${AUR_DBEXT:-db}
 force=no
 
 usage() {
@@ -27,11 +27,11 @@ while true; do
   case $1 in
   -d | --database)
     shift
-    db_name=$1
+    aur_repo=$1
     ;;
   -r | --root)
     shift
-    db_root=$1
+    aur_dbroot=$1
     ;;
   -f | --force)
     force=yes
@@ -47,9 +47,9 @@ while true; do
   shift
 done
 
-db_path="$db_root/$db_name.$db_ext.tar.gz"
+db_path="$aur_dbroot/$aur_repo/$aur_repo.$aur_dbext.tar.gz"
 
-sudo install --owner "$(id --user)" --group "$(id --group)" --directory "$db_root"
+sudo install --owner "$(id --user)" --group "$(id --group)" --directory "$aur_dbroot/$aur_repo"
 
 if [ -f "$db_path" ]; then
   if [ "$force" = yes ]; then
