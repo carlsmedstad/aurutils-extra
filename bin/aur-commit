@@ -124,6 +124,9 @@ check_pkgbuild_vars
 printf >&2 -- '-- %s: updating .SRCINFO\n' "$argv0"
 makepkg --printsrcinfo > .SRCINFO
 
+printf >&2 -- '-- %s: verying source files\n' "$argv0"
+makepkg --verifysource
+
 # Ensure version has been bumped
 if [ "$version_check" = yes ]; then
   if [ -z "$(git status --porcelain)" ]; then
