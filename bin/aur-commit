@@ -243,7 +243,7 @@ fi
 committable_changes=$(git diff)$(git diff --cached)
 
 if [ -n "$committable_changes" ]; then
-  git commit -am "Publish version $new_pkgver-$new_pkgrel"
+  git commit -am "upgpkg: $new_pkgver-$new_pkgrel"
 else
   printf >&2 -- '-- %s: no changes to commit\n' "$argv0"
   if [ "$version_check" = yes ]; then
