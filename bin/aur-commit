@@ -127,6 +127,16 @@ makepkg --printsrcinfo > .SRCINFO
 printf >&2 -- '-- %s: verying source files\n' "$argv0"
 makepkg --verifysource
 
+# Detect wether in a standalone repository or in an aurpublish super-repository
+git_root_dir=$(git rev-parse --show-toplevel)
+if [ "$git_root_dir" = "$PWD" ]; then
+  printf >&2 -- '-- %s: standalone repository detected\n' "$argv0"
+  standalone_repository=yes
+else
+  printf >&2 -- '-- %s: aurpublish super-repository detected\n' "$argv0"
+  standalone_repository=no
+fi
+
 # Ensure version has been bumped
 if [ "$version_check" = yes ]; then
   if [ -z "$(git status --porcelain)" ]; then
@@ -136,15 +146,10 @@ if [ "$version_check" = yes ]; then
 
   old_pkgbuild=$(mktemp)
 
-  # Handle case where package repo is a subtree in a aurpublish
-  # super-repository.
-  if git ls-tree --full-tree -r --name-only HEAD | grep -q "^$_pkgbase/PKGBUILD$"; then
-    git show "HEAD:$_pkgbase/PKGBUILD" >> "$old_pkgbuild"
-  elif git ls-tree --full-tree -r --name-only HEAD | grep -q '^PKGBUILD$'; then
+  if [ "$standalone_repository" = yes ]; then
     git show "HEAD:PKGBUILD" >> "$old_pkgbuild"
   else
-    printf >&2 -- '-- %s: PKGBUILD: not comitted\n' "$argv0"
-    exit 22 # errno EINVAL
+    git show "HEAD:$_pkgbase/PKGBUILD" >> "$old_pkgbuild"
   fi
 
   # shellcheck disable=1090
@@ -243,10 +248,18 @@ if [ "$install" = yes ]; then
   done
 fi
 
-committable_changes=$(git diff)$(git diff --cached)
+committable_changes=$(git diff .)$(git diff --cached .)
 
 if [ -n "$committable_changes" ]; then
-  git commit -am "upgpkg: $new_pkgver-$new_pkgrel"
+  git reset > /dev/null
+  git add .
+  git status --short --branch
+  if [ "$standalone_repository" = yes ]; then
+    git commit --edit --message "upgpkg: $new_pkgver-$new_pkgrel"
+  else
+    # Commit message is handled by aurpublish
+    git commit
+  fi
 else
   printf >&2 -- '-- %s: no changes to commit\n' "$argv0"
   if [ "$version_check" = yes ]; then
