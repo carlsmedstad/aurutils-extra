@@ -11,7 +11,7 @@ dbroot=$(aur repo -d custom | grep '^root:' | sed 's/^root://')
 
 # Default options
 actions=vlhci
-force=no
+force=0
 
 usage() {
   printf >&2 'usage: %s [-h] [-f] [-a <actions: vlhci>]\n' "$argv0"
@@ -35,7 +35,7 @@ while true; do
     actions=$1
     ;;
   -f | --force)
-    force=yes
+    force=1
     ;;
   -h | --help)
     usage
@@ -48,29 +48,29 @@ while true; do
   shift
 done
 
-version_check=no
-lint=no
-host_build=no
-chroot_build=no
-install=no
+version_check=0
+lint=0
+host_build=0
+chroot_build=0
+install=0
 
 # Parse actions and set variables
 for action in $(echo "$actions" | fold -w1); do
   case $action in
   v)
-    version_check=yes
+    version_check=1
     ;;
   l)
-    lint=yes
+    lint=1
     ;;
   h)
-    host_build=yes
+    host_build=1
     ;;
   c)
-    chroot_build=yes
+    chroot_build=1
     ;;
   i)
-    install=yes
+    install=1
     ;;
   *)
     printf >&2 -- '-- %s: %s: unkown action\n' "$argv0" "$1"
@@ -79,8 +79,8 @@ for action in $(echo "$actions" | fold -w1); do
   esac
 done
 
-if [ "$force" = yes ]; then
-  version_check=no
+if [ "$force" = 1 ]; then
+  version_check=0
 fi
 
 if [ ! -f PKGBUILD ]; then
@@ -124,14 +124,14 @@ check_pkgbuild_vars
 git_root_dir=$(git rev-parse --show-toplevel)
 if [ "$git_root_dir" = "$PWD" ]; then
   printf >&2 -- '-- %s: standalone repository detected\n' "$argv0"
-  standalone_repository=yes
+  standalone_repository=1
 else
   printf >&2 -- '-- %s: aurpublish super-repository detected\n' "$argv0"
-  standalone_repository=no
+  standalone_repository=0
 fi
 
 # Ensure version has been bumped
-if [ "$version_check" = yes ]; then
+if [ "$version_check" = 1 ]; then
   if [ -z "$(git status --porcelain)" ]; then
     printf >&2 -- '-- %s: %s-%s: nothing to commit\n' "$argv0" "$pkgver" "$pkgrel"
     exit 0
@@ -139,7 +139,7 @@ if [ "$version_check" = yes ]; then
 
   old_pkgbuild=$(mktemp)
 
-  if [ "$standalone_repository" = yes ]; then
+  if [ "$standalone_repository" = 1 ]; then
     git show "HEAD:PKGBUILD" >> "$old_pkgbuild"
   else
     git show "HEAD:$_pkgbase/PKGBUILD" >> "$old_pkgbuild"
@@ -155,7 +155,7 @@ if [ "$version_check" = yes ]; then
   fi
 fi
 
-if [ "$lint" = yes ]; then
+if [ "$lint" = 1 ]; then
   printf >&2 -- '-- %s: Checking PKGBUILD with shfmt\n' "$argv0"
   shfmt --diff \
     --indent 2 \
@@ -185,7 +185,7 @@ makepkg --verifysource --force
 # Run sudo to ensure password is cached
 command -v sudo > /dev/null && sudo cat /dev/null
 
-if [ "$host_build" = yes ]; then
+if [ "$host_build" = 1 ]; then
   printf >&2 -- '-- %s: building on host\n' "$argv0"
 
   mkdir -p "$host_builddir/$_pkgbase/src"
@@ -195,7 +195,7 @@ if [ "$host_build" = yes ]; then
   aur build --force --sign --syncdeps --verify --remove
 fi
 
-if [ "$install" = yes ]; then
+if [ "$install" = 1 ]; then
   printf >&2 -- '-- %s: installing package/s\n' "$argv0"
   # shellcheck disable=2154
   for _pkgname in "${pkgname[@]}"; do
@@ -208,7 +208,7 @@ if [ "$install" = yes ]; then
   fi
 fi
 
-if [ "$chroot_build" = yes ]; then
+if [ "$chroot_build" = 1 ]; then
   printf >&2 -- '-- %s: building in chroot\n' "$argv0"
   aur chroot --build
 fi
@@ -217,7 +217,7 @@ printf >&2 -- '-- %s: PKGBUILD: >>> namcap BEGIN\n' "$argv0"
 namcap PKGBUILD
 printf >&2 -- '-- %s: PKGBUILD: <<< namcap END\n' "$argv0"
 
-if [ "$host_build" = yes ]; then
+if [ "$host_build" = 1 ]; then
   for _pkgname in "${pkgname[@]}"; do
     pkg_path="$dbroot/$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
     printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
@@ -226,7 +226,7 @@ if [ "$host_build" = yes ]; then
   done
 fi
 
-if [ "$chroot_build" = yes ]; then
+if [ "$chroot_build" = 1 ]; then
   for _pkgname in "${pkgname[@]}"; do
     pkg_path="$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
     printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
@@ -235,7 +235,7 @@ if [ "$chroot_build" = yes ]; then
   done
 fi
 
-if [ "$install" = yes ]; then
+if [ "$install" = 1 ]; then
   for _pkgname in "${pkgname[@]}"; do
     # Uninstall package if not in keep file
     # shellcheck disable=2015
@@ -251,7 +251,7 @@ if [ -n "$committable_changes" ]; then
   git reset > /dev/null
   git add .
   git status --short --branch
-  if [ "$standalone_repository" = yes ]; then
+  if [ "$standalone_repository" = 1 ]; then
     git commit --edit --message "upgpkg: $new_pkgver-$new_pkgrel"
   else
     # Commit message is handled by aurpublish
@@ -259,7 +259,7 @@ if [ -n "$committable_changes" ]; then
   fi
 else
   printf >&2 -- '-- %s: no changes to commit\n' "$argv0"
-  if [ "$version_check" = yes ]; then
+  if [ "$version_check" = 1 ]; then
     exit 22 # errno EINVAL
   fi
 fi

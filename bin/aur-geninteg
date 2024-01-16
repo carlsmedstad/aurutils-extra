@@ -3,7 +3,7 @@
 argv0=geninteg
 
 # Default options
-force_download=no
+force_download=0
 
 usage() {
   printf >&2 'usage: %s [-f]\n' "$argv0"
@@ -23,7 +23,7 @@ fi
 while true; do
   case $1 in
   -f | --force-download)
-    force_download=yes
+    force_download=1
     ;;
   --)
     shift
@@ -70,7 +70,7 @@ for arch in x86_64 i686 armv7h aarch64; do
     download_file="$download_dir/$filename"
   fi
 
-  if [ ! -f "$download_file" ] || [ $force_download = "yes" ]; then
+  if [ ! -f "$download_file" ] || [ $force_download = 1 ]; then
     download "$download_file" "$url"
   fi
 

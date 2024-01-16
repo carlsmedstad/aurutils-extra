@@ -6,7 +6,7 @@ argv0=db-init
 aur_repo=${AUR_REPO:-custom}
 aur_dbroot=${AUR_DBROOT:-/var/lib/repo}
 aur_dbext=${AUR_DBEXT:-db}
-force=no
+force=0
 
 usage() {
   printf >&2 'usage: %s [-d name] [-r path] [-f]\n' "$argv0"
@@ -34,7 +34,7 @@ while true; do
     aur_dbroot=$1
     ;;
   -f | --force)
-    force=yes
+    force=1
     ;;
   --)
     shift
@@ -52,7 +52,7 @@ db_path="$aur_dbroot/$aur_repo/$aur_repo.$aur_dbext.tar.gz"
 sudo install --owner "$(id --user)" --group "$(id --group)" --directory "$aur_dbroot/$aur_repo"
 
 if [ -f "$db_path" ]; then
-  if [ "$force" = yes ]; then
+  if [ "$force" = 1 ]; then
     printf >&2 '%s: %s: removing existing database\n' "$argv0" "$db_path"
     rm "$db_path"
   else
