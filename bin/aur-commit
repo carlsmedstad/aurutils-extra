@@ -121,12 +121,6 @@ check_pkgbuild_vars
   new_arch="$arch"
 }
 
-printf >&2 -- '-- %s: updating .SRCINFO\n' "$argv0"
-makepkg --printsrcinfo > .SRCINFO
-
-printf >&2 -- '-- %s: verying source files\n' "$argv0"
-makepkg --verifysource
-
 # Detect wether in a standalone repository or in an aurpublish super-repository
 git_root_dir=$(git rev-parse --show-toplevel)
 if [ "$git_root_dir" = "$PWD" ]; then
@@ -182,6 +176,12 @@ if [ "$lint" = yes ]; then
     desktop-file-validate ./*.desktop
   fi
 fi
+
+printf >&2 -- '-- %s: updating .SRCINFO\n' "$argv0"
+makepkg --printsrcinfo > .SRCINFO
+
+printf >&2 -- '-- %s: verying source files\n' "$argv0"
+makepkg --verifysource
 
 # Run sudo to ensure password is cached
 command -v sudo > /dev/null && sudo cat /dev/null
