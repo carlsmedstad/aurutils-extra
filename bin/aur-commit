@@ -10,7 +10,7 @@ host_builddir=${AUR_HOST_BUILDDIR:-}
 dbroot=$(aur repo -d custom | grep '^root:' | sed 's/^root://')
 
 # Default options
-actions=vlhci
+actions=vlhcig
 exclude=
 force=0
 
@@ -58,6 +58,7 @@ lint=0
 host_build=0
 chroot_build=0
 install=0
+git_commit=0
 
 # Parse actions and set variables
 for action in $(echo "$actions" | fold -w1 | grep -v "$exclude"); do
@@ -76,6 +77,9 @@ for action in $(echo "$actions" | fold -w1 | grep -v "$exclude"); do
     ;;
   i)
     install=1
+    ;;
+  g)
+    git_commit=1
     ;;
   *)
     printf >&2 -- '-- %s: %s: unkown action\n' "$argv0" "$1"
@@ -250,21 +254,23 @@ if [ "$install" = 1 ]; then
   done
 fi
 
-committable_changes=$(git diff .)$(git diff --cached .)
+if [ "$git_commit" = 1 ]; then
+  committable_changes=$(git diff .)$(git diff --cached .)
 
-if [ -n "$committable_changes" ]; then
-  git reset > /dev/null
-  git add .
-  git status --short --branch
-  if [ "$standalone_repository" = 1 ]; then
-    git commit --edit --message "upgpkg: $new_pkgver-$new_pkgrel"
+  if [ -n "$committable_changes" ]; then
+    git reset > /dev/null
+    git add .
+    git status --short --branch
+    if [ "$standalone_repository" = 1 ]; then
+      git commit --edit --message "upgpkg: $new_pkgver-$new_pkgrel"
+    else
+      # Commit message is handled by aurpublish
+      git commit
+    fi
   else
-    # Commit message is handled by aurpublish
-    git commit
-  fi
-else
-  printf >&2 -- '-- %s: no changes to commit\n' "$argv0"
-  if [ "$version_check" = 1 ]; then
-    exit 22 # errno EINVAL
+    printf >&2 -- '-- %s: no changes to commit\n' "$argv0"
+    if [ "$version_check" = 1 ]; then
+      exit 22 # errno EINVAL
+    fi
   fi
 fi
