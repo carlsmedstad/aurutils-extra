@@ -61,7 +61,8 @@ install=0
 git_commit=0
 
 # Parse actions and set variables
-for action in $(echo "$actions" | fold -w1 | grep -v "$exclude"); do
+for action in $(echo "$actions" | fold -w1); do
+  echo "$exclude" | grep --quiet "$action" && continue
   case $action in
   v)
     version_check=1
