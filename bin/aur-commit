@@ -11,16 +11,17 @@ dbroot=$(aur repo -d custom | grep '^root:' | sed 's/^root://')
 
 # Default options
 actions=vlhci
+exclude=
 force=0
 
 usage() {
-  printf >&2 'usage: %s [-h] [-f] [-a <actions: vlhci>]\n' "$argv0"
+  printf >&2 'usage: %s [-h] [-f] [-a <actions: vlhci>] [-e <actions: vlhci>]\n' "$argv0"
   exit 1
 }
 
 # Option parsing
-opt_short='hfa:'
-opt_long='help,actions:'
+opt_short='hfa:e:'
+opt_long='help,actions:exclude:'
 
 if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
   eval set -- "$opts"
@@ -33,6 +34,10 @@ while true; do
   -a | --actions)
     shift
     actions=$1
+    ;;
+  -e | --exclude)
+    shift
+    exclude=$1
     ;;
   -f | --force)
     force=1
@@ -55,7 +60,7 @@ chroot_build=0
 install=0
 
 # Parse actions and set variables
-for action in $(echo "$actions" | fold -w1); do
+for action in $(echo "$actions" | fold -w1 | grep -v "$exclude"); do
   case $action in
   v)
     version_check=1
