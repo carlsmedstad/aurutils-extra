@@ -4,11 +4,10 @@ argv0=commit
 
 # Environemnt variables
 keep_file=${AUR_KEEP_FILE:-$HOME/.config/aurutils/keep}
-host_aur_repo=${AUR_REPO:-custom}
-host_aur_dbroot=${AUR_DBROOT:-/var/lib/repo/$host_aur_repo}
-chroot_aur_repo=${CHROOT_AUR_REPO:-chroot}
-chroot_aur_dbroot=${CHROOT_AUR_DBROOT:-/var/lib/repo/$chroot_aur_repo}
-host_build_dir=${AUR_HOST_BUILDDIR:-/tmp/makepkg}
+host_builddir=${AUR_HOST_BUILDDIR:-}
+[ -z "$host_builddir" ] \
+  && host_builddir=$(grep '^BUILDDIR=' /etc/makepkg.conf | sed 's/^BUILDDIR=//')
+dbroot=$(aur repo -d custom | grep '^root:' | sed 's/^root://')
 
 # Default options
 actions=vlhci
@@ -181,7 +180,7 @@ printf >&2 -- '-- %s: updating .SRCINFO\n' "$argv0"
 makepkg --printsrcinfo > .SRCINFO
 
 printf >&2 -- '-- %s: verying source files\n' "$argv0"
-makepkg --verifysource
+makepkg --verifysource --force
 
 # Run sudo to ensure password is cached
 command -v sudo > /dev/null && sudo cat /dev/null
@@ -189,11 +188,11 @@ command -v sudo > /dev/null && sudo cat /dev/null
 if [ "$host_build" = yes ]; then
   printf >&2 -- '-- %s: building on host\n' "$argv0"
 
-  mkdir -p "$host_build_dir/$_pkgbase/src"
-  git -C "$host_build_dir/$_pkgbase/src" init
-  printf "*\n" > "$host_build_dir/$_pkgbase/src/.gitignore"
+  mkdir -p "$host_builddir/$_pkgbase/src"
+  git -C "$host_builddir/$_pkgbase/src" init
+  printf "*\n" > "$host_builddir/$_pkgbase/src/.gitignore"
 
-  aur build --database "$host_aur_repo" --force --sign --syncdeps --verify
+  aur build --force --sign --syncdeps --verify --remove
 fi
 
 if [ "$install" = yes ]; then
@@ -211,9 +210,7 @@ fi
 
 if [ "$chroot_build" = yes ]; then
   printf >&2 -- '-- %s: building in chroot\n' "$argv0"
-
-  AUR_REPO=$chroot_aur_repo AUR_DBROOT=$chroot_aur_dbroot \
-    aur build --database "$chroot_aur_repo" --force --sign --syncdeps --verify --chroot
+  aur chroot --build
 fi
 
 printf >&2 -- '-- %s: PKGBUILD: >>> namcap BEGIN\n' "$argv0"
@@ -222,7 +219,7 @@ printf >&2 -- '-- %s: PKGBUILD: <<< namcap END\n' "$argv0"
 
 if [ "$host_build" = yes ]; then
   for _pkgname in "${pkgname[@]}"; do
-    pkg_path="$host_aur_dbroot/$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
+    pkg_path="$dbroot/$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
     printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
     namcap "$pkg_path"
     printf >&2 -- '-- %s: %s: <<< namcap END\n' "$argv0" "$pkg_path"
@@ -231,7 +228,7 @@ fi
 
 if [ "$chroot_build" = yes ]; then
   for _pkgname in "${pkgname[@]}"; do
-    pkg_path="$chroot_aur_dbroot/$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
+    pkg_path="$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
     printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
     namcap "$pkg_path"
     printf >&2 -- '-- %s: %s: <<< namcap END\n' "$argv0" "$pkg_path"
