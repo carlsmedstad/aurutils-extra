@@ -1,6 +1,36 @@
 #!/bin/sh -eu
 
-argv0=update-super-repo
+argv0=sync-super-repo
+
+usage() {
+  printf >&2 'usage: %s [-h] PACKAGE...\n' "$argv0"
+  exit 1
+}
+
+# Option parsing
+opt_short='h'
+opt_long='help'
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  -h | --help)
+    usage
+    ;;
+  --)
+    shift
+    break
+    ;;
+  esac
+  shift
+done
+
+aur_super_repo=${AUR_SUPER_REPO:?}
 
 clone_and_copy() {
   pkg=$1
@@ -15,6 +45,8 @@ clone_and_copy() {
 
   rm -r "$tmp_dir"
 }
+
+cd "$aur_super_repo"
 
 for pkg in "$@"; do
   remote_url="https://aur.archlinux.org/$pkg.git"
@@ -50,5 +82,5 @@ for pkg in "$@"; do
   clone_and_copy "$pkg"
   git add "$pkg"
   git commit -m "addpkg: $pkg: $upstream_commit_hash"
-  printf >&2 -- '-- %s: %s: s%: added package\n' "$argv0" "$pkg" "$upstream_commit_hash"
+  printf >&2 -- '-- %s: %s: %s: added package\n' "$argv0" "$pkg" "$upstream_commit_hash"
 done
