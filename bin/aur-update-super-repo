@@ -1,0 +1,54 @@
+#!/bin/sh -eu
+
+argv0=update-super-repo
+
+clone_and_copy() {
+  pkg=$1
+
+  tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/pkgbuilds.XXXXXX")
+  git clone --depth 1 "https://aur.archlinux.org/$pkg.git" "$tmp_dir"
+
+  mkdir -p "$pkg"
+  for file in $(git -C "$tmp_dir" ls-files); do
+    cp "$tmp_dir/$file" "$pkg/$file"
+  done
+
+  rm -r "$tmp_dir"
+}
+
+for pkg in "$@"; do
+  remote_url="https://aur.archlinux.org/$pkg.git"
+  upstream_commit_hash=$(
+    git ls-remote "$remote_url" refs/heads/master \
+      | awk '{ print $1 }'
+  )
+
+  if [ -d "$pkg" ]; then
+    if [ -n "$(git status --porcelain "$pkg")" ]; then
+      printf >&2 -- '-- %s: %s: ERROR: dirty\n' "$argv0" "$pkg"
+      exit 1
+    fi
+
+    local_commit_hash=$(
+      git log -1 --format="%B" -- "$pkg" \
+        | head -1 \
+        | awk '{ print $3 }'
+    )
+    if [ "$local_commit_hash" = "$upstream_commit_hash" ]; then
+      printf >&2 -- '-- %s: %s: no changes\n' "$argv0" "$pkg"
+      continue
+    fi
+
+    rm -rf "$pkg"
+    clone_and_copy "$pkg"
+    git add "$pkg"
+    git commit -m "upgpkg: $pkg: $upstream_commit_hash"
+    printf >&2 -- '-- %s: %s: s%: updated package\n' "$argv0" "$pkg" "$upstream_commit_hash"
+    continue
+  fi
+
+  clone_and_copy "$pkg"
+  git add "$pkg"
+  git commit -m "addpkg: $pkg: $upstream_commit_hash"
+  printf >&2 -- '-- %s: %s: s%: added package\n' "$argv0" "$pkg" "$upstream_commit_hash"
+done
