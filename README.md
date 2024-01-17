@@ -81,6 +81,23 @@ fewer inputs.
   a change in a package has been done, with a single command. After this
   command has been run, a simple `git push` will publish the update.
 
+* `aur-list-pkgs` - Lists all packages maintained or co-maintained by a
+  specific user (defaults to `$USER`). Use the option `-b/--pkgbase` to unique
+  package bases instead of packages.
+
+  ```sh
+  $ aur list-pkgs --user carsme
+  aicommits
+  antora-cli
+  antora-site-generator
+  archivebox
+  ...
+  uim
+  vpn-unlimited-bin
+  watchman
+  yajsv
+  ```
+
 ## Installation
 
 To install the commands system-wide, clone the repository and run:
