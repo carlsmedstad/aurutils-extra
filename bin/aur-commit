@@ -57,7 +57,7 @@ version_check=0
 lint=0
 host_build=0
 chroot_build=0
-install=0
+do_install=0
 git_commit=0
 
 # Parse actions and set variables
@@ -77,7 +77,7 @@ for action in $(echo "$actions" | fold -w1); do
     chroot_build=1
     ;;
   i)
-    install=1
+    do_install=1
     ;;
   g)
     git_commit=1
@@ -205,7 +205,8 @@ if [ "$host_build" = 1 ]; then
   aur build --force --sign --syncdeps --verify --remove
 fi
 
-if [ "$install" = 1 ]; then
+if [ "$do_install" = 1 ]; then
+  echo asdasdasddas
   printf >&2 -- '-- %s: installing package/s\n' "$argv0"
   # shellcheck disable=2154
   for _pkgname in "${pkgname[@]}"; do
@@ -245,7 +246,7 @@ if [ "$chroot_build" = 1 ]; then
   done
 fi
 
-if [ "$install" = 1 ]; then
+if [ "$do_install" = 1 ]; then
   for _pkgname in "${pkgname[@]}"; do
     # Uninstall package if not in keep file
     # shellcheck disable=2015
