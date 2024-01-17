@@ -15,7 +15,7 @@ usage() {
 
 # Option parsing
 opt_short='hbu:'
-opt_long='help,pkgbase,user'
+opt_long='help,pkgbase,user:'
 
 if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
   eval set -- "$opts"
