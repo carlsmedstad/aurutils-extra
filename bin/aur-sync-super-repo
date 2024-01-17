@@ -43,7 +43,7 @@ clone_and_copy() {
     cp "$tmp_dir/$file" "$pkg/$file"
   done
 
-  rm -r "$tmp_dir"
+  rm -rf "$tmp_dir"
 }
 
 cd "$aur_super_repo"
@@ -55,9 +55,18 @@ for pkg in "$@"; do
       | awk '{ print $1 }'
   )
 
+  if [ -f "$pkg" ]; then
+    printf >&2 -- '-- %s: %s: ERROR: is a file\n' "$argv0" "$pkg"
+    exit 1
+  fi
+  if [ -n "$(git status --porcelain "$pkg")" ]; then
+    printf >&2 -- '-- %s: %s: ERROR: dirty\n' "$argv0" "$pkg"
+    exit 1
+  fi
+
   if [ -d "$pkg" ]; then
-    if [ -n "$(git status --porcelain "$pkg")" ]; then
-      printf >&2 -- '-- %s: %s: ERROR: dirty\n' "$argv0" "$pkg"
+    if ! git ls-files --error-unmatch "$pkg/" > /dev/null; then
+      printf >&2 -- '-- %s: %s: ERROR: directory untracked\n' "$argv0" "$pkg"
       exit 1
     fi
 
@@ -75,7 +84,7 @@ for pkg in "$@"; do
     clone_and_copy "$pkg"
     git add "$pkg"
     git commit -m "upgpkg: $pkg: $upstream_commit_hash"
-    printf >&2 -- '-- %s: %s: s%: updated package\n' "$argv0" "$pkg" "$upstream_commit_hash"
+    printf >&2 -- '-- %s: %s: %s: updated package\n' "$argv0" "$pkg" "$upstream_commit_hash"
     continue
   fi
 
