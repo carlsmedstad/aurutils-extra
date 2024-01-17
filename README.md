@@ -98,6 +98,33 @@ fewer inputs.
   yajsv
   ```
 
+* `aur-update-super-repo` - Sync package repositories, i.e. copy and commit the
+  latest contents, to a super repository specified by the environment variable
+  `AUR_SUPER_REPO`. Example super repository: [carlsmedstad/aurpkgs][].
+
+  To create add all your packages to an existing repository, ensure
+  `AUR_SUPER_REPO` is set correctly and run:
+
+  ```sh
+  $ aur list-pkgs --pkgbase --user $your_aur_user | xargs aur sync-super-repo
+  ...
+  -- sync-super-repo: watchman: 2ae946b6be8fd7ad405e2ef057fbf09420764cfd: added package
+  Cloning into '/tmp/pkgbuilds.xzN2jE'...
+  remote: Enumerating objects: 5, done.
+  remote: Counting objects: 100% (5/5), done.
+  remote: Compressing objects: 100% (4/4), done.
+  remote: Total 5 (delta 0), reused 5 (delta 0), pack-reused 0
+  Receiving objects: 100% (5/5), done.
+  [master ec72c6c] addpkg: yajsv: edf8ba7c7075670cd17901a5ffc8a95565a6cd17
+   3 files changed, 58 insertions(+)
+   create mode 100644 yajsv/.SRCINFO
+   create mode 100644 yajsv/.gitignore
+   create mode 100644 yajsv/PKGBUILD
+  -- sync-super-repo: yajsv: edf8ba7c7075670cd17901a5ffc8a95565a6cd17: added package
+  ```
+
+[carlsmedstad/aurpkgs]: https://github.com/carlsmedstad/aurpkgs
+
 ## Installation
 
 To install the commands system-wide, clone the repository and run:
