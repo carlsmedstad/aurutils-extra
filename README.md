@@ -98,7 +98,7 @@ fewer inputs.
   yajsv
   ```
 
-* `aur-update-super-repo` - Sync package repositories, i.e. copy and commit the
+* `aur-sync-super-repo` - Sync package repositories, i.e. copy and commit the
   latest contents, to a super repository specified by the environment variable
   `AUR_SUPER_REPO`. Example super repository: [carlsmedstad/aurpkgs][].
 
