@@ -1,6 +1,6 @@
 #!/bin/sh -eu
 
-argv0=list-mine
+argv0=list-pkgs
 
 # Environemnt variables
 aur_user=${AUR_USER:-$USER}
