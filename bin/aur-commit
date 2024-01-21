@@ -112,6 +112,7 @@ else
   _pkgbase="$pkgname"
 fi
 
+# Ensure required variables are defined
 check_pkgbuild_vars() {
   for var_name in "${var_names[@]}"; do
     if [ -z "${!var_name}" ]; then
@@ -124,6 +125,7 @@ check_pkgbuild_vars
 
 # shellcheck disable=2154
 {
+  new_pkgname=("${pkgname[@]}")
   new_pkgver="$pkgver"
   new_pkgrel="$pkgrel"
   # shellcheck disable=2128
@@ -209,7 +211,7 @@ if [ "$do_install" = 1 ]; then
   echo asdasdasddas
   printf >&2 -- '-- %s: installing package/s\n' "$argv0"
   # shellcheck disable=2154
-  for _pkgname in "${pkgname[@]}"; do
+  for _pkgname in "${new_pkgname[@]}"; do
     sudo pacman -Sy --noconfirm "$_pkgname"
   done
 
@@ -229,7 +231,7 @@ namcap PKGBUILD
 printf >&2 -- '-- %s: PKGBUILD: <<< namcap END\n' "$argv0"
 
 if [ "$host_build" = 1 ]; then
-  for _pkgname in "${pkgname[@]}"; do
+  for _pkgname in "${new_pkgname[@]}"; do
     pkg_path="$dbroot/$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
     printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
     namcap "$pkg_path"
@@ -238,7 +240,7 @@ if [ "$host_build" = 1 ]; then
 fi
 
 if [ "$chroot_build" = 1 ]; then
-  for _pkgname in "${pkgname[@]}"; do
+  for _pkgname in "${new_pkgname[@]}"; do
     pkg_path="$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
     printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
     namcap "$pkg_path"
@@ -247,7 +249,7 @@ if [ "$chroot_build" = 1 ]; then
 fi
 
 if [ "$do_install" = 1 ]; then
-  for _pkgname in "${pkgname[@]}"; do
+  for _pkgname in "${new_pkgname[@]}"; do
     # Uninstall package if not in keep file
     # shellcheck disable=2015
     [ -f "$keep_file" ] \
