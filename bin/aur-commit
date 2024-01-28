@@ -208,7 +208,6 @@ if [ "$host_build" = 1 ]; then
 fi
 
 if [ "$do_install" = 1 ]; then
-  echo asdasdasddas
   printf >&2 -- '-- %s: installing package/s\n' "$argv0"
   # shellcheck disable=2154
   for _pkgname in "${new_pkgname[@]}"; do
