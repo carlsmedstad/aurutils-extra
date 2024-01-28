@@ -123,6 +123,21 @@ fewer inputs.
   -- sync-super-repo: yajsv: edf8ba7c7075670cd17901a5ffc8a95565a6cd17: added package
   ```
 
+* `aur-get-pkgstats` - Fetch package usage statistics from
+  <https://pkgstats.archlinux.de/>, sorted from most used to least used. To
+  fetch statistics for all your packages, run:
+
+  ```sh
+  $ aur list-pkgs | xargs aur get-pkgstats
+  python-progress                                  2639  16.77
+  hplip-plugin                                     1060  6.73
+  rarian                                           437   2.78
+  ...
+  commitlint                                       0     0
+  boost174                                         0     0
+  bita                                             0     0
+  ```
+
 [carlsmedstad/aurpkgs]: https://github.com/carlsmedstad/aurpkgs
 
 ## Installation

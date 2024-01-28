@@ -1,0 +1,40 @@
+#!/bin/sh -eu
+
+argv0=get-pkgstats
+
+usage() {
+  printf >&2 'usage: %s [-h] PKGBASE...\n' "$argv0"
+  exit 1
+}
+
+# Option parsing
+opt_short='h'
+opt_long='help'
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  -h | --help)
+    usage
+    ;;
+  --)
+    shift
+    break
+    ;;
+  esac
+  shift
+done
+
+tmpfile=$(mktemp)
+for pkg in "$@"; do
+  curl --silent --show-error --fail-with-body \
+    "https://pkgstats.archlinux.de/api/packages/$pkg" \
+    | jq -r '[.name, .count, .popularity] | join(" ")' >> "$tmpfile"
+done
+
+sort --reverse --numeric --key=2 "$tmpfile" | column --table
