@@ -20,13 +20,6 @@ fewer inputs.
     -> Created signature file 'custom.files.tar.gz.sig'
   ```
 
-* `aur-install` - Install a package from the AUR, i.e. sync the package to
-  local database and install it using pacman.
-
-  ```sh
-  aur install $package
-  ```
-
 * `aur-remove` - Remove a package from the local database. (Taken from the man
   pages of aurutils).
 
