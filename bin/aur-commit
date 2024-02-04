@@ -179,7 +179,7 @@ if [ "$lint" = 1 ]; then
   printf >&2 -- '-- %s: Checking PKGBUILD with shellcheck\n' "$argv0"
   shellcheck \
     --shell=bash \
-    --exclude=2034,2128,2154,2164 \
+    --exclude=2034,2128,2154,2155,2164 \
     PKGBUILD
 
   if [ -n "$(find . -name '*.desktop')" ]; then
