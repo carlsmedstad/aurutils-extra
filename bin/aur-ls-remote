@@ -1,0 +1,12 @@
+#!/bin/sh -eu
+
+# shellcheck disable=1091
+. "$PWD/PKGBUILD"
+
+prefix=
+if grep '^prefix' .nvchecker.toml > /dev/null; then
+  prefix=$(grep '^prefix' .nvchecker.toml | sed 's/^prefix = "//' | sed 's/"$//')
+fi
+
+# shellcheck disable=2154
+git ls-remote --tags "$url" "$prefix$pkgver" | awk '{print $1}'
