@@ -200,8 +200,13 @@ command -v sudo > /dev/null && sudo cat /dev/null
 if [ "$host_build" = 1 ]; then
   printf >&2 -- '-- %s: building on host\n' "$argv0"
 
+  # Some build systems (e.g. hatch for Python) infer files to include from the
+  # .gitignore of any parent repository. Add a .gitignore excluding everything
+  # to catch these cases in order to mitigate them in the PKGBUILD.
   mkdir -p "$host_builddir/$_pkgbase/src"
-  git -C "$host_builddir/$_pkgbase/src" init
+  git -C "$host_builddir/$_pkgbase/src" init --quiet
+  git -C "$host_builddir/$_pkgbase/src" commit \
+    --quiet --allow-empty --message "TMP"
   printf "*\n" > "$host_builddir/$_pkgbase/src/.gitignore"
 
   aur build --force --sign --syncdeps --verify --remove
