@@ -253,13 +253,15 @@ if [ "$chroot_build" = 1 ]; then
 fi
 
 if [ "$do_install" = 1 ]; then
+  remove_pkgs=()
   for _pkgname in "${new_pkgname[@]}"; do
-    # Uninstall package if not in keep file
-    # shellcheck disable=2015
-    [ -f "$keep_file" ] \
-      && grep --quiet "$_pkgname" "$keep_file" \
-      || sudo pacman -Rs --noconfirm "$_pkgname"
+    # Skip this package if it's in the keep file
+    [ -f "$keep_file" ] && grep --quiet "$_pkgname" "$keep_file" && continue
+    remove_pkgs+=("$_pkgname")
   done
+  if [ ${#remove_pkgs[@]} -gt 0 ]; then
+    sudo pacman -Rs --noconfirm "${remove_pkgs[@]}"
+  fi
 fi
 
 if [ "$git_commit" = 1 ]; then
