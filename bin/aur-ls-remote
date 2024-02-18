@@ -1,12 +1,64 @@
-#!/bin/sh -eu
+#!/bin/bash -eu
+
+argv0=ls-remote
+
+# Default options
+prefix=
+
+usage() {
+  printf >&2 'usage: %s [-h] [-p <prefix>]\n' "$argv0"
+  exit 1
+}
+
+# Option parsing
+opt_short='hp:'
+opt_long='help,prefix:'
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  -p | --prefix)
+    shift
+    prefix=$1
+    ;;
+  -h | --help)
+    usage
+    ;;
+  --)
+    shift
+    break
+    ;;
+  esac
+  shift
+done
+
+if [ ! -f PKGBUILD ]; then
+  printf >&2 -- '-- %s: PKGBUILD: does not exist\n' "$argv0"
+  exit 2 # errno ENOENT
+fi
 
 # shellcheck disable=1091
 . "$PWD/PKGBUILD"
 
-prefix=
+nvchecker_prefix=
 if grep '^prefix' .nvchecker.toml > /dev/null; then
-  prefix=$(grep '^prefix' .nvchecker.toml | sed 's/^prefix = "//' | sed 's/"$//')
+  nvchecker_prefix=$(
+    grep '^prefix' .nvchecker.toml \
+      | sed 's/^prefix = "//' \
+      | sed 's/"$//'
+  )
 fi
+
+if [ -z "$prefix" ]; then
+  prefix=$nvchecker_prefix
+fi
+
+printf >&2 -- '-- %s: using prefix %s\n' "$argv0" "$prefix"
 
 # shellcheck disable=2154
 git ls-remote --tags "$url" "$prefix$pkgver" | awk '{print $1}'
