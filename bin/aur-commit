@@ -260,7 +260,8 @@ if [ "$do_install" = 1 ]; then
     remove_pkgs+=("$_pkgname")
   done
   if [ ${#remove_pkgs[@]} -gt 0 ]; then
-    sudo pacman -Rs --noconfirm "${remove_pkgs[@]}"
+    sudo pacman -Rs --noconfirm "${remove_pkgs[@]}" \
+      || printf >&2 -- '-- %s: WARNING: Could not unistall packages\n' "$argv0"
   fi
 fi
 
