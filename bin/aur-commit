@@ -227,7 +227,7 @@ fi
 
 if [ "$chroot_build" = 1 ]; then
   printf >&2 -- '-- %s: building in chroot\n' "$argv0"
-  aur chroot --build
+  aur chroot --build --bind-rw "$HOME/.cache/ccache:/build/.cache/ccache"
 fi
 
 printf >&2 -- '-- %s: PKGBUILD: >>> namcap BEGIN\n' "$argv0"
