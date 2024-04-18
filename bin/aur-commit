@@ -192,7 +192,7 @@ fi
 printf >&2 -- '-- %s: updating .SRCINFO\n' "$argv0"
 makepkg --printsrcinfo > .SRCINFO
 
-printf >&2 -- '-- %s: verying source files\n' "$argv0"
+printf >&2 -- '-- %s: verifying source files\n' "$argv0"
 makepkg --verifysource --force
 
 # Run sudo to ensure password is cached
