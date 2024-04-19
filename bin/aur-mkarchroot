@@ -1,0 +1,43 @@
+#!/bin/bash -eu
+
+argv0=mkarchroot
+
+usage() {
+  printf >&2 'usage: %s [-h]\n' "$argv0"
+  exit 1
+}
+# Option parsing
+opt_short='h'
+opt_long='help'
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  -h | --help)
+    usage
+    ;;
+  --)
+    shift
+    break
+    ;;
+  esac
+  shift
+done
+
+# Run sudo to ensure password is cached
+command -v sudo > /dev/null && sudo cat /dev/null
+
+chroot_dir="/var/lib/aurbuild/$(uname -m)/root"
+sudo mkdir -p "$(dirname "$chroot_dir")"
+pushd "$(dirname "$chroot_dir")"
+mkarchroot -C /etc/pacman.conf -M /etc/makepkg.conf root base-devel ccache
+popd
+{
+  echo 'export CCACHE_DIR="/ccache"'
+  echo 'export CCACHE_BASEDIR="/build"'
+} | sudo tee "$chroot_dir/etc/profile.d/ccache.sh"
