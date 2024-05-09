@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-argv0=get-pkgstats
+argv0=pkgstats
 
 usage() {
   printf >&2 'usage: %s [-h] PKGBASE...\n' "$argv0"
