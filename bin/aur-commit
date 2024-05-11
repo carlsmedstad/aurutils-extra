@@ -98,60 +98,56 @@ if [ ! -f PKGBUILD ]; then
   exit 2 # errno ENOENT
 fi
 
-# Source PKGBUILD and check for required variables
-var_names=(pkgname pkgver pkgrel arch)
-pkgbase=""
-unset "${var_names[@]}"
-# shellcheck disable=1091
-. "$PWD/PKGBUILD"
-
-if [ -n "$pkgbase" ]; then
-  _pkgbase="$pkgbase"
-else
-  # shellcheck disable=2154
-  _pkgbase="$pkgname"
-fi
-
-# Ensure required variables are defined
-check_pkgbuild_vars() {
-  for var_name in "${var_names[@]}"; do
-    if [ -z "${!var_name}" ]; then
-      printf >&2 -- '-- %s: %s: not defined in PKGBUILD\n' "$argv0" "$var_name"
-      exit 22 # eerno EINVAL
-    fi
-  done
-}
-check_pkgbuild_vars
-
-# shellcheck disable=2154
-{
-  new_pkgname=("${pkgname[@]}")
-  new_pkgver="$pkgver"
-  new_pkgrel="$pkgrel"
-  # shellcheck disable=2128
-  new_arch="$arch"
+parse_srcinfo() {
+  pkgbase=
+  pkgnames=()
+  pkgver=
+  pkgrel=
+  archs=()
+  while IFS=' = ' read -r key value; do
+    case $key in
+    *pkgbase)
+      pkgbase=$value
+      ;;
+    *pkgname)
+      pkgnames+=("$value")
+      ;;
+    *pkgver)
+      pkgver=$value
+      ;;
+    *pkgrel)
+      pkgrel=$value
+      ;;
+    *arch)
+      archs+=("$value")
+      ;;
+    *) ;;
+    esac
+  done < "$1"
 }
 
 # Ensure version has been bumped
 if [ "$version_check" = 1 ]; then
+  old_srcinfo=$(mktemp)
+  git show "HEAD:.SRCINFO" >> "$old_srcinfo"
+  parse_srcinfo "$old_srcinfo"
+
+  old_pkgver=$pkgver
+  old_pkgrel=$pkgrel
+
+  parse_srcinfo "$PWD/.SRCINFO"
+
   if [ -z "$(git status --porcelain)" ]; then
     printf >&2 -- '-- %s: %s-%s: nothing to commit\n' "$argv0" "$pkgver" "$pkgrel"
     exit 0
   fi
-
-  old_pkgbuild=$(mktemp)
-
-  git show "HEAD:PKGBUILD" >> "$old_pkgbuild"
-
-  # shellcheck disable=1090
-  . "$old_pkgbuild"
-  check_pkgbuild_vars
-
-  if [ "$pkgver" = "$new_pkgver" ] && [ "$pkgrel" = "$new_pkgrel" ]; then
+  if [ "$old_pkgver" = "$pkgver" ] && [ "$old_pkgrel" = "$pkgrel" ]; then
     printf >&2 -- '-- %s: %s-%s: neither pkgver nor pkgrel bumped\n' "$argv0" "$pkgver" "$pkgrel"
     exit 22 # eerno EINVAL
   fi
 fi
+
+parse_srcinfo "$PWD/.SRCINFO"
 
 if [ "$lint" = 1 ]; then
   printf >&2 -- '-- %s: Checking PKGBUILD with shfmt\n' "$argv0"
@@ -189,11 +185,11 @@ if [ "$host_build" = 1 ]; then
   # Some build systems (e.g. hatch for Python) infer files to include from the
   # .gitignore of any parent repository. Add a .gitignore excluding everything
   # to catch these cases in order to mitigate them in the PKGBUILD.
-  mkdir -p "$host_builddir/$_pkgbase/src"
-  git -C "$host_builddir/$_pkgbase/src" init --quiet
-  git -C "$host_builddir/$_pkgbase/src" commit \
+  mkdir -p "$host_builddir/$pkgbase/src"
+  git -C "$host_builddir/$pkgbase/src" init --quiet
+  git -C "$host_builddir/$pkgbase/src" commit \
     --quiet --allow-empty --message "TMP"
-  printf "*\n" > "$host_builddir/$_pkgbase/src/.gitignore"
+  printf "*\n" > "$host_builddir/$pkgbase/src/.gitignore"
 
   aur build --force --sign --syncdeps --verify --remove
 fi
@@ -201,8 +197,8 @@ fi
 if [ "$do_install" = 1 ]; then
   printf >&2 -- '-- %s: installing package/s\n' "$argv0"
   # shellcheck disable=2154
-  for _pkgname in "${new_pkgname[@]}"; do
-    sudo pacman -Sy --noconfirm "$_pkgname"
+  for pkgname in "${pkgnames[@]}"; do
+    sudo pacman -Sy --noconfirm "$pkgname"
   done
 
   if [ -n "$(find . -name '*.service')" ]; then
@@ -221,8 +217,8 @@ namcap PKGBUILD
 printf >&2 -- '-- %s: PKGBUILD: <<< namcap END\n' "$argv0"
 
 if [ "$host_build" = 1 ]; then
-  for _pkgname in "${new_pkgname[@]}"; do
-    pkg_path="$dbroot/$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
+  for pkgname in "${pkgnames[@]}"; do
+    pkg_path="$dbroot/$pkgname-$pkgver-$pkgrel-${archs[0]}.pkg.tar.zst"
     printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
     namcap "$pkg_path"
     printf >&2 -- '-- %s: %s: <<< namcap END\n' "$argv0" "$pkg_path"
@@ -230,8 +226,8 @@ if [ "$host_build" = 1 ]; then
 fi
 
 if [ "$chroot_build" = 1 ]; then
-  for _pkgname in "${new_pkgname[@]}"; do
-    pkg_path="$_pkgname-$new_pkgver-$new_pkgrel-${new_arch[0]}.pkg.tar.zst"
+  for pkgname in "${pkgnames[@]}"; do
+    pkg_path="$pkgname-$pkgver-$pkgrel-${archs[0]}.pkg.tar.zst"
     printf >&2 -- '-- %s: %s: >>> namcap BEGIN\n' "$argv0" "$pkg_path"
     namcap "$pkg_path"
     printf >&2 -- '-- %s: %s: <<< namcap END\n' "$argv0" "$pkg_path"
@@ -240,10 +236,10 @@ fi
 
 if [ "$do_install" = 1 ]; then
   remove_pkgs=()
-  for _pkgname in "${new_pkgname[@]}"; do
+  for pkgname in "${pkgnames[@]}"; do
     # Skip this package if it's in the keep file
-    [ -f "$keep_file" ] && grep --quiet "$_pkgname" "$keep_file" && continue
-    remove_pkgs+=("$_pkgname")
+    [ -f "$keep_file" ] && grep --quiet "$pkgname" "$keep_file" && continue
+    remove_pkgs+=("$pkgname")
   done
   if [ ${#remove_pkgs[@]} -gt 0 ]; then
     sudo pacman -Rs --noconfirm "${remove_pkgs[@]}" \
@@ -258,7 +254,7 @@ if [ "$git_commit" = 1 ]; then
     git reset > /dev/null
     git add .
     git status --short --branch
-    git commit --edit --message "upgpkg: $new_pkgver-$new_pkgrel"
+    git commit --edit --message "upgpkg: $pkgver-$pkgrel"
   else
     printf >&2 -- '-- %s: no changes to commit\n' "$argv0"
     if [ "$version_check" = 1 ]; then
