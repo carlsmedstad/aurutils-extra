@@ -1,0 +1,74 @@
+#!/bin/bash -eu
+
+argv0=lspkg
+
+# Default options
+repo=aur
+maintainer=${AUR_USER:-$USER}
+pkgbase=0
+
+usage() {
+  printf >&2 "usage: %s [-r <aur|official|both>] [-m <maintainer>] [-b] [-h]" "$argv0"
+  exit 1
+}
+
+# Option parsing
+opt_short='r:m:bh'
+opt_long='repo:,maintainer:,pkgbase,help'
+
+if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
+  eval set -- "$opts"
+else
+  usage
+fi
+
+while true; do
+  case $1 in
+  -r | --repo)
+    shift
+    repo=$1
+    ;;
+  -m | --maintainer)
+    shift
+    maintainer=$1
+    ;;
+  -b | --pkgbase)
+    pkgbase=1
+    ;;
+  -h | --help)
+    usage
+    ;;
+  --)
+    shift
+    break
+    ;;
+  esac
+  shift
+done
+
+[[ $repo =~ ^(aur|official|both)$ ]] || {
+  printf >&2 "error: repo must be one of 'aur', 'official', or 'both'\n"
+  usage
+}
+
+{
+  if [ "$repo" = aur ] || [ "$repo" = both ]; then
+    key=Name
+    [ $pkgbase = 1 ] && key=PackageBase
+
+    curl --fail-with-body --silent --show-error \
+      "https://aur.archlinux.org/rpc/?v=5&type=search&by=maintainer&arg=$maintainer" \
+      | jq -r .results[].$key
+    curl --fail-with-body --silent --show-error \
+      "https://aur.archlinux.org/rpc/?v=5&type=search&by=comaintainers&arg=$maintainer" \
+      | jq -r .results[].$key
+  fi
+  if [ "$repo" = official ] || [ "$repo" = both ]; then
+    key=pkgname
+    [ $pkgbase = 1 ] && key=pkgbase
+
+    curl --fail-with-body --silent --show-error \
+      "https://archlinux.org/packages/search/json/?maintainer=$maintainer" \
+      | jq -r '.results[].pkgbase'
+  fi
+} | sort | uniq

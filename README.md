@@ -74,12 +74,12 @@ fewer inputs.
   a change in a package has been done, with a single command. After this
   command has been run, a simple `git push` will publish the update.
 
-* `aur-list-pkgs` - Lists all packages maintained or co-maintained by a
+* `aur-lspkg` - Lists all packages maintained or co-maintained by a
   specific user (defaults to `$USER`). Use the option `-b/--pkgbase` to unique
   package bases instead of packages.
 
   ```sh
-  $ aur list-pkgs --user carsme
+  $ aur lspkg --maintainer carsme
   aicommits
   antora-cli
   antora-site-generator
@@ -99,7 +99,7 @@ fewer inputs.
   `AUR_SUPER_REPO` is set correctly and run:
 
   ```sh
-  $ aur list-pkgs --pkgbase --user $your_aur_user | xargs aur sync-super-repo
+  $ aur lspkg --pkgbase --user $your_aur_user | xargs aur sync-super-repo
   ...
   -- sync-super-repo: watchman: 2ae946b6be8fd7ad405e2ef057fbf09420764cfd: added package
   Cloning into '/tmp/pkgbuilds.xzN2jE'...
@@ -121,7 +121,7 @@ fewer inputs.
   fetch statistics for all your packages, run:
 
   ```sh
-  $ aur list-pkgs | xargs aur pkgstats
+  $ aur lspkg | xargs aur pkgstats
   python-progress                                  2639  16.77
   hplip-plugin                                     1060  6.73
   rarian                                           437   2.78
