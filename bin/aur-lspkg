@@ -8,7 +8,7 @@ maintainer=${AUR_USER:-$USER}
 pkgbase=0
 
 usage() {
-  printf >&2 "usage: %s [-r <aur|official|both>] [-m <maintainer>] [-b] [-h]" "$argv0"
+  printf >&2 "usage: %s [-r <aur|official|both>] [-m <maintainer>] [-b] [-h]\n" "$argv0"
   exit 1
 }
 
