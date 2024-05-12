@@ -126,6 +126,9 @@ parse_srcinfo() {
   done < "$1"
 }
 
+printf >&2 -- '-- %s: updating .SRCINFO\n' "$argv0"
+makepkg --printsrcinfo > .SRCINFO
+
 # Ensure version has been bumped
 if [ "$version_check" = 1 ]; then
   old_srcinfo=$(mktemp)
@@ -169,9 +172,6 @@ if [ "$lint" = 1 ]; then
     desktop-file-validate ./*.desktop
   fi
 fi
-
-printf >&2 -- '-- %s: updating .SRCINFO\n' "$argv0"
-makepkg --printsrcinfo > .SRCINFO
 
 printf >&2 -- '-- %s: verifying source files\n' "$argv0"
 makepkg --verifysource --force
