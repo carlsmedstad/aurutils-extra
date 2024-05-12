@@ -132,16 +132,6 @@ check_pkgbuild_vars
   new_arch="$arch"
 }
 
-# Detect wether in a standalone repository or in an aurpublish super-repository
-git_root_dir=$(git rev-parse --show-toplevel)
-if [ "$git_root_dir" = "$PWD" ]; then
-  printf >&2 -- '-- %s: standalone repository detected\n' "$argv0"
-  standalone_repository=1
-else
-  printf >&2 -- '-- %s: aurpublish super-repository detected\n' "$argv0"
-  standalone_repository=0
-fi
-
 # Ensure version has been bumped
 if [ "$version_check" = 1 ]; then
   if [ -z "$(git status --porcelain)" ]; then
@@ -151,11 +141,7 @@ if [ "$version_check" = 1 ]; then
 
   old_pkgbuild=$(mktemp)
 
-  if [ "$standalone_repository" = 1 ]; then
-    git show "HEAD:PKGBUILD" >> "$old_pkgbuild"
-  else
-    git show "HEAD:$_pkgbase/PKGBUILD" >> "$old_pkgbuild"
-  fi
+  git show "HEAD:PKGBUILD" >> "$old_pkgbuild"
 
   # shellcheck disable=1090
   . "$old_pkgbuild"
@@ -272,12 +258,7 @@ if [ "$git_commit" = 1 ]; then
     git reset > /dev/null
     git add .
     git status --short --branch
-    if [ "$standalone_repository" = 1 ]; then
-      git commit --edit --message "upgpkg: $new_pkgver-$new_pkgrel"
-    else
-      # Commit message is handled by aurpublish
-      git commit
-    fi
+    git commit --edit --message "upgpkg: $new_pkgver-$new_pkgrel"
   else
     printf >&2 -- '-- %s: no changes to commit\n' "$argv0"
     if [ "$version_check" = 1 ]; then
