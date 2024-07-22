@@ -9,7 +9,8 @@ usage() {
 
 # Option parsing
 opt_short='h'
-opt_long='help'
+opt_long='help,header'
+header=false
 
 if opts=$(getopt -o "$opt_short" -l "$opt_long" -n "$argv0" -- "$@"); then
   eval set -- "$opts"
@@ -22,6 +23,9 @@ while true; do
   -h | --help)
     usage
     ;;
+  --header)
+    header=true
+    ;;
   --)
     shift
     break
@@ -32,9 +36,24 @@ done
 
 tmpfile=$(mktemp)
 for pkg in "$@"; do
-  curl --silent --show-error --fail-with-body \
-    "https://pkgstats.archlinux.de/api/packages/$pkg" \
-    | jq -r '[.name, .count, .popularity] | join(" ")' >> "$tmpfile"
+  pkgstats=$(
+    curl --silent --show-error --fail-with-body \
+      "https://pkgstats.archlinux.de/api/packages/$pkg" \
+      | jq -r '[.count, .popularity] | join(" ")'
+  )
+  aurvotes=$(
+    curl --silent --show-error --fail-with-body \
+      "https://aur.archlinux.org/rpc/v5/info?arg[]=$pkg" \
+      | jq -r '.results[0].NumVotes'
+  )
+  echo "$pkg $pkgstats $aurvotes" >> "$tmpfile"
 done
 
-sort --reverse --numeric --key=2 "$tmpfile" | column --table
+if $header; then
+  {
+    echo "pkgname pkgstats_n pkgstats_% aur_votes"
+    sort --reverse --numeric --key=2 "$tmpfile"
+  } | column --table
+else
+  sort --reverse --numeric --key=2 "$tmpfile" | column --table
+fi
