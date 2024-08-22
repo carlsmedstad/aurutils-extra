@@ -8,7 +8,7 @@ maintainer=${AUR_USER:-$USER}
 pkgbase=0
 
 usage() {
-  printf >&2 "usage: %s [-r <aur|official|both>] [-m <maintainer>] [-b] [-h]\n" "$argv0"
+  printf >&2 "usage: %s [-r <repo>] [-m <maintainer>] [-b] [-h]\n" "$argv0"
   exit 1
 }
 
@@ -46,10 +46,26 @@ while true; do
   shift
 done
 
-[[ $repo =~ ^(aur|official|both)$ ]] || {
-  printf >&2 "error: repo must be one of 'aur', 'official', or 'both'\n"
+repos_official=(
+  Core
+  Core-Testing
+  Extra
+  Extra-Testing
+  Multilib
+  Multilib-Testing
+)
+repos_others=(
+  all
+  aur
+  official
+)
+repo_allowed_values=("${repos_official[*]}" "${repos_others[*]}")
+
+if [[ ! ${repo_allowed_values[*]} =~ $repo ]]; then
+  printf >&2 "error: repo must be one of:\n"
+  printf >&2 "       %s\n" "${repo_allowed_values[*]}"
   usage
-}
+fi
 
 curl_common_args=(
   --fail-with-body
@@ -58,7 +74,7 @@ curl_common_args=(
 )
 
 {
-  if [ "$repo" = aur ] || [ "$repo" = both ]; then
+  if [ "$repo" = aur ] || [ "$repo" = all ]; then
     key=Name
     [ $pkgbase = 1 ] && key=PackageBase
 
@@ -70,13 +86,21 @@ curl_common_args=(
       "$aur_rpc_search_url&by=comaintainers&arg=$maintainer" \
       | jq -r .results[].$key
   fi
-  if [ "$repo" = official ] || [ "$repo" = both ]; then
+  arch_rpc_search_url="https://archlinux.org/packages/search/json/"
+  if [ "$repo" = official ] || [ "$repo" = all ]; then
     key=pkgname
     [ $pkgbase = 1 ] && key=pkgbase
 
-    arch_rpc_search_url="https://archlinux.org/packages/search/json/"
     curl "${curl_common_args[@]}" \
       "$arch_rpc_search_url?maintainer=$maintainer" \
+      | jq -r .results[].$key
+  fi
+  if [[ ${repos_official[*]} =~ $repo ]]; then
+    key=pkgname
+    [ $pkgbase = 1 ] && key=pkgbase
+
+    curl "${curl_common_args[@]}" \
+      "$arch_rpc_search_url?maintainer=$maintainer&repo=$repo" \
       | jq -r .results[].$key
   fi
 } | sort | uniq
