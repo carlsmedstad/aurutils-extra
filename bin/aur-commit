@@ -252,8 +252,8 @@ if [ "$git_commit" = 1 ]; then
   committable_changes=$(git diff .)$(git diff --cached .)
 
   if [ -n "$committable_changes" ]; then
-    git reset > /dev/null
-    git add -u PKGBUILD .SRCINFO
+    git add PKGBUILD .SRCINFO
+    git add -u .
     git status --short --branch
     git commit --edit --message "upgpkg: $pkgver-$pkgrel"
   else
