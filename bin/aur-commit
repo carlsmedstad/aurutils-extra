@@ -209,6 +209,7 @@ fi
 
 if [ "$chroot_build" = 1 ]; then
   printf >&2 -- '-- %s: building in chroot\n' "$argv0"
+  mkdir -p "$HOME/.cache/ccache"
   aur chroot --build --bind-rw "$HOME/.cache/ccache:/ccache"
 fi
 
