@@ -252,7 +252,7 @@ if [ "$git_commit" = 1 ]; then
 
   if [ -n "$committable_changes" ]; then
     git reset > /dev/null
-    git add .
+    git add -u PKGBUILD .SRCINFO
     git status --short --branch
     git commit --edit --message "upgpkg: $pkgver-$pkgrel"
   else
