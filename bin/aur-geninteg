@@ -38,10 +38,10 @@ if [ ! -f PKGBUILD ]; then
   exit 2 # errno ENOENT
 fi
 
+CARCH=${CARCH:-$(uname -m)}
+
 # shellcheck disable=SC1091
 . ./PKGBUILD
-
-CARCH=${CARCH:-$(uname -m)}
 
 download() {
   local filename=$1
