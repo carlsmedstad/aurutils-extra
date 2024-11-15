@@ -91,9 +91,14 @@ curl_common_args=(
     key=pkgname
     [ $pkgbase = 1 ] && key=pkgbase
 
-    curl "${curl_common_args[@]}" \
-      "$arch_rpc_search_url?maintainer=$maintainer" \
-      | jq -r .results[].$key
+    res=$(curl "${curl_common_args[@]}" "$arch_rpc_search_url?maintainer=$maintainer")
+    echo "$res" | jq -r .results[].$key
+    num_pages=$(echo "$res" | jq -r .num_pages)
+    for page in $(seq 2 "$num_pages"); do
+      curl "${curl_common_args[@]}" \
+        "$arch_rpc_search_url?page=$page&maintainer=$maintainer" \
+        | jq -r .results[].$key
+    done
   fi
   if [[ ${repos_official[*]} =~ $repo ]]; then
     key=pkgname
